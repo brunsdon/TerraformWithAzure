@@ -1,0 +1,48 @@
+Hands-On with Terraform on Azure
+
+https://app.pluralsight.com/ilx/hands-on-with-terraform-on-azure/table-of-content
+
+Tools:
+Terraform
+Git
+Azure CLI
+VS Code
+
+Set up Infrastructure as Code workstation as code using Chocolatey
+
+Chocolatey - used to automate the installation of packages on Windows
+
+https://chocolatey.org
+
+Install Chocolatey:
+Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+terraform --version
+az --version
+
+code --install-extension hashicorp.terraform
+
+terraform init
+
+az login
+
+az account show
+
+terraform import azurerm_resource_group.rg <Reource ID>
+
+terraform import azurerm_resource_group.rg /subscriptions/bbd07278-6536-4322-8b3b-94b7c8c83665/resourceGroups/IntManOpenSpaces-Stores-AustraliaSouthEast
+
+https://registry.terraform.io
+
+terraform validate
+
+terraform plan -out tfplan
+
+terraform apply tfplan
+
+$env:ARM_SUBSCRIPTION_ID = ""
+
+az account show --query id --output tsv
+az account show
+az account list --query "[].{Name:name, SubscriptionId:id, State:state}" --output table
+

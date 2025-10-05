@@ -56,7 +56,73 @@ az account set --subscription "your-subscription-id"
 az account show
 ```
 
-### 2. Create Your First Terraform Configuration
+### 2. Set Azure Environment Variables
+
+For security, configure your Azure subscription ID as an environment variable instead of hardcoding it in your Terraform files.
+
+#### Method 1: PowerShell (Windows)
+
+```powershell
+# Get your current subscription ID
+$subscriptionId = az account show --query id --output tsv
+
+# Set the environment variable
+$env:ARM_SUBSCRIPTION_ID = $subscriptionId
+
+# Verify it's set
+Write-Host "ARM_SUBSCRIPTION_ID: $env:ARM_SUBSCRIPTION_ID"
+```
+
+#### Method 2: Using the Automated Script
+
+Run the provided PowerShell script that automatically gets your subscription ID:
+
+```powershell
+# Navigate to your project directory
+cd "c:\Projects\Pluralsight\Terraform\BasicExample"
+
+# Run the environment setup script
+. .\set-azure-env.ps1
+```
+
+#### Method 3: Manual Setup
+
+If you know your subscription ID, set it directly:
+
+```powershell
+# Replace with your actual subscription ID
+$env:ARM_SUBSCRIPTION_ID = "your-subscription-id-here"
+```
+
+#### Method 4: Bash/Linux
+
+```bash
+# Get subscription ID
+SUBSCRIPTION_ID=$(az account show --query id --output tsv)
+
+# Set environment variable
+export ARM_SUBSCRIPTION_ID=$SUBSCRIPTION_ID
+
+# Verify
+echo "ARM_SUBSCRIPTION_ID: $ARM_SUBSCRIPTION_ID"
+```
+
+#### Finding Your Subscription ID
+
+If you need to find your subscription ID:
+
+```bash
+# Show current subscription
+az account show --query id --output tsv
+
+# List all subscriptions
+az account list --query "[].{Name:name, SubscriptionId:id, State:state}" --output table
+
+# Show detailed account info
+az account show
+```
+
+### 3. Create Your First Terraform Configuration
 
 Create a basic `main.tf` file:
 
@@ -80,7 +146,7 @@ resource "azurerm_resource_group" "example" {
 }
 ```
 
-### 3. Initialize and Apply
+### 4. Initialize and Apply
 
 ```bash
 # Initialize Terraform
@@ -115,18 +181,21 @@ terraform apply
 
 ### Basic Provider Configuration
 
+#### Recommended: Using Environment Variables (Most Secure)
+
 ```hcl
 terraform {
   required_version = ">= 1.0"
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~>3.0"
+      version = "~>4.47.0"  # Use latest version
     }
   }
 }
 
 provider "azurerm" {
+  # subscription_id is automatically read from ARM_SUBSCRIPTION_ID environment variable
   features {
     resource_group {
       prevent_deletion_if_contains_resources = false
@@ -138,9 +207,37 @@ provider "azurerm" {
 }
 ```
 
+#### Alternative: Explicit Configuration
+
+```hcl
+provider "azurerm" {
+  subscription_id = var.subscription_id  # Using variable
+  features {}
+}
+```
+```
+
 ### Service Principal Authentication
 
-For automated deployments, use service principal authentication:
+For automated deployments (CI/CD pipelines), use service principal authentication with environment variables:
+
+```bash
+# Set all required environment variables
+export ARM_CLIENT_ID="your-service-principal-client-id"
+export ARM_CLIENT_SECRET="your-service-principal-client-secret"
+export ARM_SUBSCRIPTION_ID="your-subscription-id"
+export ARM_TENANT_ID="your-tenant-id"
+```
+
+```hcl
+provider "azurerm" {
+  # All authentication details read from environment variables:
+  # ARM_CLIENT_ID, ARM_CLIENT_SECRET, ARM_SUBSCRIPTION_ID, ARM_TENANT_ID
+  features {}
+}
+```
+
+#### Alternative: Using Variables
 
 ```hcl
 provider "azurerm" {
@@ -362,7 +459,65 @@ resource "azurerm_subnet" "main" {
 
 ## Best Practices
 
-### 1. Naming Conventions
+### 1. Environment Variables and Security
+
+#### Azure Authentication Environment Variables
+
+Terraform automatically recognizes these Azure environment variables:
+
+| Variable | Description | Required For |
+|----------|-------------|--------------|
+| `ARM_SUBSCRIPTION_ID` | Azure Subscription ID | All scenarios |
+| `ARM_CLIENT_ID` | Service Principal Client ID | Service Principal auth |
+| `ARM_CLIENT_SECRET` | Service Principal Secret | Service Principal auth |
+| `ARM_TENANT_ID` | Azure Tenant ID | Service Principal auth |
+
+#### Setting Up Environment Variables
+
+**PowerShell (Windows):**
+```powershell
+# For current session
+$env:ARM_SUBSCRIPTION_ID = "your-subscription-id"
+
+# For permanent setup, add to your PowerShell profile
+# Find profile location: $PROFILE
+# Add to profile: $env:ARM_SUBSCRIPTION_ID = "your-subscription-id"
+```
+
+**Bash/Linux:**
+```bash
+# For current session
+export ARM_SUBSCRIPTION_ID="your-subscription-id"
+
+# For permanent setup, add to ~/.bashrc or ~/.bash_profile
+echo 'export ARM_SUBSCRIPTION_ID="your-subscription-id"' >> ~/.bashrc
+```
+
+#### Security Best Practices for Environment Variables
+
+1. **Never commit sensitive values to version control**
+2. **Use environment-specific scripts** (dev, test, prod)
+3. **Use Azure Key Vault** for production secrets
+4. **Rotate service principal secrets** regularly
+5. **Use managed identities** when running in Azure
+
+#### Example Environment Setup Script
+
+Create a `set-azure-env.ps1` file:
+```powershell
+# Automatically get current subscription ID
+$subscriptionId = az account show --query id --output tsv
+$env:ARM_SUBSCRIPTION_ID = $subscriptionId
+
+# Optional: Set other variables for service principal auth
+# $env:ARM_CLIENT_ID = "your-client-id"
+# $env:ARM_CLIENT_SECRET = "your-client-secret" 
+# $env:ARM_TENANT_ID = "your-tenant-id"
+
+Write-Host "Environment variables set for subscription: $subscriptionId" -ForegroundColor Green
+```
+
+### 2. Naming Conventions
 
 Follow Azure naming conventions:
 
@@ -376,7 +531,7 @@ locals {
 }
 ```
 
-### 2. Tagging Strategy
+### 3. Tagging Strategy
 
 ```hcl
 locals {
@@ -397,7 +552,7 @@ resource "azurerm_resource_group" "main" {
 }
 ```
 
-### 3. Variable Validation
+### 4. Variable Validation
 
 ```hcl
 variable "environment" {
@@ -424,7 +579,7 @@ variable "vm_size" {
 }
 ```
 
-### 4. Security Best Practices
+### 5. Security Best Practices
 
 ```hcl
 # Use managed identities
@@ -453,7 +608,7 @@ resource "azurerm_storage_account" "main" {
 }
 ```
 
-### 5. Resource Dependencies
+### 6. Resource Dependencies
 
 ```hcl
 # Explicit dependencies
@@ -582,7 +737,41 @@ resource "azurerm_monitor_autoscale_setting" "main" {
 
 ### Common Issues and Solutions
 
-#### 1. Provider Registration
+#### 1. Environment Variable Issues
+
+**Error: "subscription ID could not be determined"**
+```bash
+# Check if environment variable is set
+echo $ARM_SUBSCRIPTION_ID  # Linux/Mac
+echo $env:ARM_SUBSCRIPTION_ID  # PowerShell
+
+# Set the variable if missing
+az account show --query id --output tsv  # Get subscription ID
+$env:ARM_SUBSCRIPTION_ID = "your-subscription-id"  # PowerShell
+export ARM_SUBSCRIPTION_ID="your-subscription-id"  # Bash
+```
+
+**Error: "building account: unable to configure ResourceManagerAccount"**
+```bash
+# Verify Azure CLI authentication
+az account show
+
+# Re-authenticate if needed
+az login
+az account set --subscription "your-subscription-id"
+```
+
+**Environment variables not persisting between sessions:**
+```powershell
+# PowerShell: Add to profile for persistence
+notepad $PROFILE
+# Add: $env:ARM_SUBSCRIPTION_ID = "your-subscription-id"
+
+# Or use the setup script
+. .\set-azure-env.ps1
+```
+
+#### 2. Provider Registration
 
 ```bash
 # Register required resource providers
@@ -591,7 +780,7 @@ az provider register --namespace Microsoft.Network
 az provider register --namespace Microsoft.Storage
 ```
 
-#### 2. State File Issues
+#### 3. State File Issues
 
 ```bash
 # Refresh state
@@ -604,7 +793,7 @@ terraform import azurerm_resource_group.main /subscriptions/{subscription-id}/re
 terraform force-unlock LOCK_ID
 ```
 
-#### 3. Authentication Issues
+#### 4. Authentication Issues
 
 ```bash
 # Clear Azure CLI cache
@@ -614,7 +803,7 @@ az account clear
 az login --tenant {tenant-id}
 ```
 
-#### 4. Debugging
+#### 5. Debugging
 
 ```bash
 # Enable debug logging
